@@ -132,8 +132,6 @@ class indirect
     using pointer = typename allocator_traits::pointer;
     using const_pointer = typename allocator_traits::const_pointer;
 
-    // static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
-
     /* 20.5.1.3 [indirect.ctor], constructors */
 
     // default constructor
@@ -490,15 +488,16 @@ class indirect
 };
 
 template<class Value>
-indirect(Value) -> indirect<Value>;
+indirect(Value)
+    -> indirect<Value>;
 
 template<class Allocator, class Value>
 indirect(std::allocator_arg_t, Allocator, Value)
-  -> indirect<Value, typename std::allocator_traits<Allocator>::template rebind_alloc<Value>>;
+    -> indirect<Value, typename std::allocator_traits<Allocator>::template rebind_alloc<Value>>;
 
 namespace pmr {
-    template<class T>
-    using indirect = jsm::indirect<T, std::pmr::polymorphic_allocator<T>>;
+template<class T>
+using indirect = jsm::indirect<T, std::pmr::polymorphic_allocator<T>>;
 } // namespace pmr
 
 } // namespace jsm
