@@ -279,7 +279,7 @@ class indirect
         if constexpr (allocator_traits::propagate_on_container_copy_assignment::value) {
             this->~indirect();
             alloc_ = other.alloc_;
-            allocator_traits::allocate(alloc_, ptr_, sizeof(T));
+            allocator_traits::allocate(alloc_, ptr_, 1);
         }
 
         allocator_traits::construct(alloc_, ptr_, *other.ptr_);
@@ -315,7 +315,7 @@ class indirect
         if constexpr (allocator_traits::propagate_on_container_move_assignment::value) {
             this->~indirect();
             alloc_ = other.alloc_;
-            allocator_traits::allocate(alloc_, ptr_, sizeof(T));
+            allocator_traits::allocate(alloc_, ptr_, 1);
         }
 
         allocator_traits::construct(alloc_, ptr_, std::move(*other.ptr_));
@@ -460,7 +460,7 @@ class indirect
     static constexpr pointer make_obj_(Allocator& alloc, Args&&... args)
     {
         // 20.5.1.1.3
-        std::unique_ptr<T> newptr { allocator_traits::allocate(alloc, sizeof(T)) };
+        std::unique_ptr<T> newptr { allocator_traits::allocate(alloc, 1) };
         allocator_traits::construct(alloc, newptr.get(), std::forward<Args>(args)...);
         return newptr.release();
     }
