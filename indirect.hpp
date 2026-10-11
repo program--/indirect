@@ -138,28 +138,28 @@ class indirect
     constexpr explicit indirect()
         requires (std::is_default_constructible_v<Allocator> && std::is_default_constructible_v<T>)
       : alloc_()
-      , ptr_(make_obj_())
+      , ptr_(make_obj_(alloc_))
     {}
 
     // allocator-aware default constructor
     constexpr explicit indirect(std::allocator_arg_t, const Allocator& a)
         requires (std::is_default_constructible_v<T>)
       : alloc_(a)
-      , ptr_(make_obj_())
+      , ptr_(make_obj_(alloc_))
     {}
 
     // copy constructor
     constexpr indirect(const indirect& other)
         requires (std::is_copy_constructible_v<T>)
       : alloc_(allocator_traits::select_on_container_copy_construction(other.alloc_))
-      , ptr_(make_obj_indirect_(other))
+      , ptr_(make_obj_indirect_(alloc_, other))
     {}
 
     // allocator-aware copy constructor
     constexpr indirect(std::allocator_arg_t, const Allocator& a, const indirect& other)
         requires (std::is_copy_constructible_v<T>)
       : alloc_(a)
-      , ptr_(make_obj_indirect_(other))
+      , ptr_(make_obj_indirect_(alloc_, other))
     {}
 
     // move constructor
@@ -178,7 +178,7 @@ class indirect
         if constexpr (! allocator_traits::is_always_equal::value) {
             other.ptr_ = std::exchange(ptr_, nullptr);
             if (! other.valueless_after_move()) {
-                ptr_ = make_obj_indirect_(std::move(other));
+                ptr_ = make_obj_indirect_(alloc_, std::move(other));
             }
             indirect tmp = std::move(other);
         }
@@ -193,7 +193,7 @@ class indirect
         )
     constexpr explicit indirect(U&& value)
       : alloc_()
-      , ptr_(make_obj_(std::forward<U>(value)))
+      , ptr_(make_obj_(alloc_, std::forward<U>(value)))
     {}
 
     template<class U = T>
@@ -205,7 +205,7 @@ class indirect
         )
     constexpr explicit indirect(std::allocator_arg_t, const Allocator& a, U&& value)
       : alloc_(a)
-      , ptr_(make_obj_(std::forward<U>(value)))
+      , ptr_(make_obj_(alloc_, std::forward<U>(value)))
     {}
 
     template<class... Args>
@@ -214,14 +214,14 @@ class indirect
             std::is_default_constructible_v<Allocator>
         )
     constexpr explicit indirect(std::in_place_t, Args&&... args)
-      : ptr_(make_obj_(std::forward<Args>(args)...))
+      : ptr_(make_obj_(alloc_, std::forward<Args>(args)...))
     {}
 
     template<class... Args>
         requires (std::is_constructible_v<T, Args...>)
     constexpr explicit indirect(std::allocator_arg_t, const Allocator& a, std::in_place_t, Args&&... args)
       : alloc_(a)
-      , ptr_(make_obj_(std::forward<Args>(args)...))
+      , ptr_(make_obj_(alloc_, std::forward<Args>(args)...))
     {}
 
     template<class I, class... Args>
@@ -231,14 +231,14 @@ class indirect
         )
     constexpr explicit indirect(std::in_place_t, std::initializer_list<I> ilist, Args&&... args)
       : alloc_()
-      , ptr_(make_obj_(ilist, std::forward<Args>(args)...))
+      , ptr_(make_obj_(alloc_, ilist, std::forward<Args>(args)...))
     {}
 
     template<class I, class... Args>
         requires (std::is_constructible_v<T, std::initializer_list<I>&, Args...>)
     constexpr explicit indirect(std::allocator_arg_t, const Allocator& a, std::in_place_t, std::initializer_list<I> ilist, Args&&... args)
       : alloc_(a)
-      , ptr_(make_obj_(ilist, std::forward<Args>(args)...))
+      , ptr_(make_obj_(alloc_, ilist, std::forward<Args>(args)...))
     {}
 
     /* 20.5.1.4 [indirect.dtor], destructor */
@@ -331,7 +331,7 @@ class indirect
     constexpr indirect& operator=(U&& value)
     {
         if (valueless_after_move()) {
-            ptr_ = make_obj_(std::forward<U>(value));
+            ptr_ = make_obj_(alloc_, std::forward<U>(value));
         } else {
             *ptr_ = std::forward<U>(value);
         }
@@ -457,30 +457,30 @@ class indirect
 
   private:
     template<typename... Args>
-    constexpr pointer make_obj_(Args&&... args) const
+    static constexpr pointer make_obj_(Allocator& alloc, Args&&... args)
     {
         // 20.5.1.1.3
-        std::unique_ptr<T> newptr = allocator_traits::allocate(alloc_, sizeof(T));
-        allocator_traits::construct(alloc_, newptr.get(), std::forward<Args>(args)...);
+        std::unique_ptr<T> newptr { allocator_traits::allocate(alloc, sizeof(T)) };
+        allocator_traits::construct(alloc, newptr.get(), std::forward<Args>(args)...);
         return newptr.release();
     }
 
-    constexpr pointer make_obj_indirect_(const indirect& other) const
+    static constexpr pointer make_obj_indirect_(Allocator& alloc, const indirect& other)
     {
         if (other.valueless_after_move()) {
             return nullptr;
         }
 
-        return make_obj_(*other);
+        return make_obj_(alloc, *other);
     }
 
-    constexpr pointer make_obj_indirect_(indirect&& other) const
+    static constexpr pointer make_obj_indirect_(Allocator& alloc, indirect&& other)
     {
         if (other.valueless_after_move()) {
             return nullptr;
         }
 
-        return make_obj_(std::move(*other));
+        return make_obj_(alloc, std::move(*other));
     }
 
     pointer ptr_;
