@@ -504,23 +504,18 @@ using indirect = jsm::indirect<T, std::pmr::polymorphic_allocator<T>>;
 
 /* 20.5.1.10 [indirect.hash], hash support */
 template<class T, class Allocator>
-struct std::hash<jsm::indirect<T, Allocator>> : private std::hash<T>
+    requires (std::is_default_constructible_v<std::hash<T>>)
+struct std::hash<jsm::indirect<T, Allocator>>
 {
-    static constexpr std::size_t valueless = static_cast<std::size_t>(-1);
-
-    template<typename... Args>
-    constexpr hash(Args... args)
-        noexcept(noexcept(std::hash<T>{std::forward<Args>(args)...}))
-      : std::hash<T>{std::forward<Args>(args)...}
-    {}
+    static constexpr std::size_t valueless = static_cast<std::size_t>(-1234);
 
     constexpr std::size_t operator()(const jsm::indirect<T, Allocator>& value)
-        noexcept(noexcept(std::hash<T>::operator()(*value)))
+        noexcept(noexcept(std::hash<T>{}(*value)))
     {
         if (value.valueless_after_move()) {
             return valueless;
         }
-        
-        return std::hash<T>::operator()(*value);
+
+        return std::hash<T>{}(*value);
     }
 };
